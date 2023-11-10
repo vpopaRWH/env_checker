@@ -1,3 +1,9 @@
+[![Formatter](https://github.com/vpopaRWH/env_checker/actions/workflows/black.yml/badge.svg)](https://github.com/vpopaRWH/env_checker/actions/workflows/black.yml)
+
+[![Code Spellcheck](https://github.com/vpopaRWH/env_checker/actions/workflows/codespell.yml/badge.svg)](https://github.com/vpopaRWH/env_checker/actions/workflows/codespell.yml)
+
+[![Pylint Status](https://github.com/vpopaRWH/env_checker/actions/workflows/pylint.yml/badge.svg)](https://github.com/vpopaRWH/env_checker/actions/workflows/pylint.yml)
+
 # Conda Environment Compatibility Checker
 
 **check_conda_env.py** is a Python script designed to check the compatibility of installed packages in a Conda environment with the versions specified in a requirements file. If any incompatibilities are found, it sends an alert to a Microsoft Teams webhook.
