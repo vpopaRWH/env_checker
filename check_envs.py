@@ -6,12 +6,13 @@ check_conda_env.py
 This script checks the compatibility of installed packages in a Conda environment with the versions specified in a requirements file. If any incompatibilities are found, it sends an alert to a Microsoft Teams webhook.
 
 Usage:
-    python check_conda_env.py <env_name> <requirements_file> <required_python_version>
+    python check_conda_env.py <env_name> <requirements_file> <required_python_version> <teams_webhook_url>
 
 Parameters:
     - env_name (str): Name of the Conda environment to be checked.
     - requirements_file (str): Path to the requirements file containing package requirements.
     - required_python_version (str): Required Python version (major version only).
+    - teams_webhook_url (str): Microsoft Teams webhook URL.
 
 The script performs the following steps:
 1. Activates the specified Conda environment.
@@ -20,7 +21,7 @@ The script performs the following steps:
 4. Checks for compatibility issues, including Python major version mismatch.
 5. Sends an alert to a Microsoft Teams webhook if incompatibilities are found.
 
-The Microsoft Teams alert message includes details about the incompatibilities detected.
+The Microsoft Teams alert message includes details about the incompatibilities detected in a table format.
 
 To run the script, provide the necessary command-line arguments as specified in the 'Usage' section.
 
@@ -29,7 +30,7 @@ Dependencies:
 Author: [Your Name]
 Date: [Date]
 """
-
+print("Start")
 import subprocess
 import re
 import sys
@@ -51,7 +52,7 @@ def parse_requirements_file(requirements_file: str) -> list[str]:
         return [line.strip() for line in file.readlines() if line.strip()]
 
 
-def get_installed_packages(env_name: str, teams_webhook_url: str) -> dict[str, str]:
+def get_installed_packages(env_name: str) -> dict[str, str]:
     """
     Get a dictionary of installed packages and their versions in a Conda environment.
 
@@ -80,23 +81,7 @@ def get_installed_packages(env_name: str, teams_webhook_url: str) -> dict[str, s
         )
 
         if process.returncode != 0:
-            teams_message = {
-                "@type": "MessageCard",
-                "@context": "http://schema.org/extensions",
-                "themeColor": "FF0000",
-                "summary": "High-Priority Alert",
-                "sections": [
-                    {
-                        "activityTitle": "Environment Activation Failed:",
-                        "facts": [
-                            {"name": "Environment Name:", "value": env_name},
-                            {"name": "Error Message:", "value": process.stderr},
-                        ],
-                    }
-                ],
-            }
-            _ = requests.post(teams_webhook_url, json=teams_message, timeout=60)
-            sys.exit(1)
+            sys.exit(f"Error activating environment {env_name}: {process.stderr}")
 
         output = process.stdout
         lines = output.split("\n")
@@ -111,30 +96,14 @@ def get_installed_packages(env_name: str, teams_webhook_url: str) -> dict[str, s
         return installed_packages
 
     except Exception as e:
-        teams_message = {
-            "@type": "MessageCard",
-            "@context": "http://schema.org/extensions",
-            "themeColor": "FF0000",
-            "summary": "High-Priority Alert",
-            "sections": [
-                {
-                    "activityTitle": "Error Occurred:",
-                    "facts": [
-                        {"name": "Environment Name:", "value": env_name},
-                        {"name": "Error Message:", "value": str(e)},
-                    ],
-                }
-            ],
-        }
-        _ = requests.post(teams_webhook_url, json=teams_message, timeout=60)
-        sys.exit(1)
+        sys.exit(f"Error getting installed packages: {str(e)}")
 
 
 def check_env_compatibility(
     env_name: str,
     requirements_file: str,
-    teams_webhook_url: str,
     required_python_version: str,
+    teams_webhook_url: str,
 ) -> None:
     """
     Check compatibility of installed packages in a Conda environment with the versions specified in the requirements file.
@@ -143,10 +112,10 @@ def check_env_compatibility(
     Args:
         env_name (str): Name of the Conda environment.
         requirements_file (str): Path to the requirements file.
-        teams_webhook_url (str): Microsoft Teams webhook URL.
         required_python_version (str): Required Python version (major version only).
+        teams_webhook_url (str): Microsoft Teams webhook URL.
     """
-    installed_packages = get_installed_packages(env_name, teams_webhook_url)
+    installed_packages = get_installed_packages(env_name)
     requirements = parse_requirements_file(requirements_file)
     incompatibilities = []
 
@@ -157,54 +126,58 @@ def check_env_compatibility(
             f"**CRITICAL: Python major version {required_python_version} is required, but you are using {python_version_major}.**"
         )
 
+    table_rows = []
+    table_rows.append("| Package | Current Version | Required Version | Mismatch |")
+    table_rows.append("| ------- | --------------- | ----------------- | -------- |")
+
     for req in requirements:
         req_obj = Requirement(req)
         pkg_name = req_obj.name
 
         if pkg_name in installed_packages:
             installed_version = installed_packages[pkg_name]
-            if not req_obj.specifier.contains(installed_version):
-                incompatibility = f"Package **{pkg_name} {installed_version}** in **{env_name}** environment is *not compatible* with **{req}**."
-                incompatibilities.append(incompatibility)
-        else:
-            incompatibility = (
-                f"Package **{pkg_name}** not found in **{env_name}** environment."
+            mismatch = not req_obj.specifier.contains(installed_version)
+            table_rows.append(
+                f"| {pkg_name} | {installed_version} | {str(req_obj.specifier)} | {str(mismatch)} |"
             )
-            incompatibilities.append(incompatibility)
+        else:
+            table_rows.append(f"| {pkg_name} | - | {str(req_obj.specifier)} | True |")
 
-    if incompatibilities:
-        teams_message = {
-            "@type": "MessageCard",
-            "@context": "http://schema.org.extensions",
-            "themeColor": "FF0000",
-            "summary": "Package Compatibility Alert",
-            "sections": [
-                {
-                    "activityTitle": "Incompatibilities Found:",
-                    "facts": [
-                        {"name": f"Error {i+1}:", "value": incompatibility}
-                        for i, incompatibility in enumerate(incompatibilities)
-                    ],
-                }
-            ],
-        }
+    teams_message = {
+        "@type": "MessageCard",
+        "@context": "http://schema.org/extensions",
+        "themeColor": "FF0000",
+        "summary": "Package Compatibility Alert",
+        "sections": [
+            {
+                "activityTitle": "Incompatibilities Found:",
+                "text": "\n".join(table_rows),
+            }
+        ],
+    }
 
-        _ = requests.post(teams_webhook_url, json=teams_message, timeout=60)
+    try:
+        response = requests.post(teams_webhook_url, json=teams_message, timeout=60)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        sys.exit(f"Error sending Teams message: {str(e)}")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 5:
         raise AttributeError(
-            "Usage: python check_conda_env.py <env_name> <requirements_file> <teams_webhook_url> <required_python_version>"
+            "Usage: python check_conda_env.py <env_name> <requirements_file> <required_python_version> <teams_webhook_url>"
         )
 
     env_name_ = sys.argv[1]
     requirements_file_ = sys.argv[2]
     required_python_version_ = sys.argv[3]
     TEAMS_WEBHOOK_URL = sys.argv[4]
+
     check_env_compatibility(
         env_name=env_name_,
         requirements_file=requirements_file_,
-        teams_webhook_url=TEAMS_WEBHOOK_URL,
         required_python_version=required_python_version_,
+        teams_webhook_url=TEAMS_WEBHOOK_URL,
     )
+    print("Done")
