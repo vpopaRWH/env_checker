@@ -6,12 +6,13 @@ check_conda_env.py
 This script checks the compatibility of installed packages in a Conda environment with the versions specified in a requirements file. If any incompatibilities are found, it sends an alert to a Microsoft Teams webhook.
 
 Usage:
-    python check_conda_env.py <env_name> <requirements_file> <required_python_version>
+    python check_conda_env.py <env_name> <requirements_file> <required_python_version> <teams_webhook_url>
 
 Parameters:
     - env_name (str): Name of the Conda environment to be checked.
     - requirements_file (str): Path to the requirements file containing package requirements.
     - required_python_version (str): Required Python version (major version only).
+    - teams_webhook_url (str): Microsoft Teams webhook URL.
 
 The script performs the following steps:
 
@@ -21,7 +22,7 @@ The script performs the following steps:
 4. Checks for compatibility issues, including Python major version mismatch.
 5. Sends an alert to a Microsoft Teams webhook if incompatibilities are found.
 
-The Microsoft Teams alert message includes details about the incompatibilities detected.
+The Microsoft Teams alert message includes details about the incompatibilities detected in a table format.
 
 To run the script, provide the necessary command-line arguments as specified in the 'Usage' section.
 
@@ -34,17 +35,17 @@ Date: [Date]
 Functions
 ---------
 
-`check_env_compatibility(env_name: str, requirements_file: str, teams_webhook_url: str, required_python_version: str) ‑> None`
+`check_env_compatibility(env_name: str, requirements_file: str, required_python_version: str, teams_webhook_url: str) ‑> None`
 :   Check compatibility of installed packages in a Conda environment with the versions specified in the requirements file.
     Send an alert to a Microsoft Teams webhook with incompatibilities found.
 
     Args:
         env_name (str): Name of the Conda environment.
         requirements_file (str): Path to the requirements file.
-        teams_webhook_url (str): Microsoft Teams webhook URL.
         required_python_version (str): Required Python version (major version only).
+        teams_webhook_url (str): Microsoft Teams webhook URL.
 
-`get_installed_packages(env_name: str, teams_webhook_url: str) ‑> dict[str, str]`
+`get_installed_packages(env_name: str) ‑> dict[str, str]`
 :   Get a dictionary of installed packages and their versions in a Conda environment.
 
     Args:
